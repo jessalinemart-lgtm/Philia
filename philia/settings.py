@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     'revenue',
     'investors',
     'budgeting',
+    'incentives',
     'dashboard',
 ]
 

@@ -4,13 +4,14 @@ from decimal import Decimal
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
-from core.models import Currency, ExchangeRate, Project
+from core.models import Currency, ExchangeRate, Jurisdiction, Project
 from ledger.models import Account, post_journal_entry
 from budgeting.models import Budget, BudgetLine
 from revenue.models import RevenueContract, RevenueMilestone
 from revenue.services import recognize_point_in_time, recognize_straight_line_month, recognize_milestone
 from investors.models import Investor, Investment, WaterfallTier
 from investors.services import run_waterfall
+from incentives.models import IncentiveProgram, ProjectIncentiveClaim
 
 
 class Command(BaseCommand):
@@ -31,6 +32,10 @@ class Command(BaseCommand):
         ExchangeRate.objects.get_or_create(currency=eur, date=date(2024, 6, 1), defaults={'rate_to_usd': Decimal('1.08')})
         ExchangeRate.objects.get_or_create(currency=gbp, date=date(2024, 1, 1), defaults={'rate_to_usd': Decimal('1.27')})
         ExchangeRate.objects.get_or_create(currency=gbp, date=date(2024, 6, 1), defaults={'rate_to_usd': Decimal('1.25')})
+
+        self.stdout.write('Seeding jurisdictions...')
+        uk, _ = Jurisdiction.objects.get_or_create(code='UK', defaults={'name': 'United Kingdom'})
+        de, _ = Jurisdiction.objects.get_or_create(code='DE', defaults={'name': 'Germany'})
 
         self.stdout.write('Seeding chart of accounts...')
         accounts = {}
@@ -93,22 +98,50 @@ class Command(BaseCommand):
 
         self.stdout.write('Recording production costs (multi-currency)...')
         cost_entries = [
-            (date(2024, 2, 1), '5100', Decimal('1150000.00'), usd, 'Cast & director fees'),
-            (date(2024, 3, 15), '5200', Decimal('980000.00'), gbp, 'UK unit crew & stage rental'),
-            (date(2024, 4, 10), '5200', Decimal('1150000.00'), eur, 'Germany location unit'),
-            (date(2024, 4, 25), '5200', Decimal('520000.00'), usd, 'Equipment & production insurance'),
-            (date(2024, 6, 20), '5300', Decimal('740000.00'), usd, 'Editorial, VFX & sound mix (over budget)'),
-            (date(2024, 7, 5), '5400', Decimal('430000.00'), usd, 'Festival strategy & trailer campaign'),
-            (date(2024, 7, 5), '5500', Decimal('180000.00'), usd, 'Legal, accounting & overhead'),
+            (date(2024, 2, 1), '5100', Decimal('1150000.00'), usd, None, 'Cast & director fees'),
+            (date(2024, 3, 15), '5200', Decimal('980000.00'), gbp, uk, 'UK unit crew & stage rental'),
+            (date(2024, 4, 10), '5200', Decimal('1150000.00'), eur, de, 'Germany location unit'),
+            (date(2024, 4, 25), '5200', Decimal('520000.00'), usd, None, 'Equipment & production insurance'),
+            (date(2024, 6, 20), '5300', Decimal('740000.00'), usd, None, 'Editorial, VFX & sound mix (over budget)'),
+            (date(2024, 7, 5), '5400', Decimal('430000.00'), usd, None, 'Festival strategy & trailer campaign'),
+            (date(2024, 7, 5), '5500', Decimal('180000.00'), usd, None, 'Legal, accounting & overhead'),
         ]
-        for d, code, amount, currency, memo in cost_entries:
+        for d, code, amount, currency, jurisdiction, memo in cost_entries:
             post_journal_entry(
                 project=project, date=d, memo=memo, source='BUDGET_ACTUAL',
                 lines=[
-                    {'account': accounts[code], 'direction': 'DEBIT', 'amount': amount, 'currency': currency, 'memo': memo},
+                    {'account': accounts[code], 'direction': 'DEBIT', 'amount': amount, 'currency': currency,
+                     'memo': memo, 'incurred_jurisdiction': jurisdiction},
                     {'account': accounts['1000'], 'direction': 'CREDIT', 'amount': amount, 'currency': currency, 'memo': memo},
                 ],
             )
+
+        self.stdout.write('Setting up tax incentive programs & claims...')
+        uk_credit = IncentiveProgram.objects.create(
+            jurisdiction=uk, name='UK Audio-Visual Expenditure Credit',
+            credit_type='REFUNDABLE_CREDIT', rate=Decimal('0.25'),
+            qualified_subtypes='BTL,POST',
+            typical_monetization_rate=Decimal('1.0'),
+            notes='Refundable against UK corporation tax; claimed via the production company\'s tax return.',
+        )
+        de_credit = IncentiveProgram.objects.create(
+            jurisdiction=de, name='German Federal Film Fund (DFFF)',
+            credit_type='TRANSFERABLE_CREDIT', rate=Decimal('0.20'), cap_amount=Decimal('300000.00'),
+            qualified_subtypes='BTL,POST',
+            typical_monetization_rate=Decimal('0.92'),
+            notes='Capped grant; monetized through a financing partner at a discount before certification.',
+        )
+        ProjectIncentiveClaim.objects.create(
+            project=project, program=uk_credit, status='CERTIFIED',
+            application_date=date(2024, 7, 1), certification_date=date(2025, 1, 15),
+            certified_qualified_spend=Decimal('980000.00'), certified_credit_amount=Decimal('245000.00'),
+            notes='Certified by HMRC; funds received against the UK unit crew & stage rental spend.',
+        )
+        ProjectIncentiveClaim.objects.create(
+            project=project, program=de_credit, status='APPLIED',
+            application_date=date(2024, 8, 1),
+            notes='Application filed with the FFA; qualified spend still being finalized pending audit.',
+        )
 
         self.stdout.write('Creating revenue contracts + recognizing revenue...')
         theatrical = RevenueContract.objects.create(
@@ -143,10 +176,12 @@ class Command(BaseCommand):
         inv1 = Investor.objects.create(name='Meridian Film Fund', entity_type='FUND', email='ir@meridianfilmfund.example')
         inv2 = Investor.objects.create(name='Alicia Chen', entity_type='INDIVIDUAL', email='alicia.chen@example.com')
         inv3 = Investor.objects.create(name='Northgate Capital LLC', entity_type='LLC', email='deals@northgatecap.example')
+        inv4 = Investor.objects.create(name='Crown Media Finance', entity_type='FUND', email='deals@crownmediafinance.example')
 
         Investment.objects.create(investor=inv1, project=project, instrument_type='EQUITY', amount=Decimal('2500000.00'), currency=usd, date=date(2024, 1, 20))
         Investment.objects.create(investor=inv2, project=project, instrument_type='EQUITY', amount=Decimal('750000.00'), currency=usd, date=date(2024, 1, 20))
         Investment.objects.create(investor=inv3, project=project, instrument_type='GAP', amount=Decimal('1250000.00'), currency=usd, date=date(2024, 2, 1))
+        Investment.objects.create(investor=inv4, project=project, instrument_type='TAX_CREDIT_BRIDGE', amount=Decimal('200000.00'), currency=usd, date=date(2024, 3, 1))
 
         WaterfallTier.objects.create(project=project, order=1, tier_type='RETURN_OF_CAPITAL')
         WaterfallTier.objects.create(project=project, order=2, tier_type='PREFERRED_RETURN', preferred_rate=Decimal('0.15'))
@@ -157,5 +192,5 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.SUCCESS(
             f'Done. Project "{project}" seeded with chart of accounts, budget, multi-currency costs, '
-            f'3 revenue contracts, 3 investors, and a finalized distribution run.'
+            f'2 tax incentive claims, 3 revenue contracts, 4 investors, and a finalized distribution run.'
         ))

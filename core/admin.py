@@ -1,11 +1,16 @@
 from django.contrib import admin
 
-from .models import Currency, ExchangeRate, Project
+from .models import Currency, ExchangeRate, Jurisdiction, Project
 
 
 @admin.register(Currency)
 class CurrencyAdmin(admin.ModelAdmin):
     list_display = ('code', 'name', 'symbol')
+
+
+@admin.register(Jurisdiction)
+class JurisdictionAdmin(admin.ModelAdmin):
+    list_display = ('code', 'name')
 
 
 @admin.register(ExchangeRate)

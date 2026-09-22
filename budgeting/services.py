@@ -68,7 +68,11 @@ def impairment_risk_assessment(project, budget):
     """
     Blends two signals into a 0-100 risk score:
       - cost overrun: actual production cost vs budget
-      - revenue shortfall: contracted+recognized revenue vs total cost basis
+      - revenue shortfall: contracted+recognized revenue vs net cost basis
+
+    Net cost basis subtracts the cash value of tax incentive claims from total cost --
+    a $1M certified rebate is real money back against the production, exactly like a
+    cost reduction, so ignoring it would overstate impairment risk.
     """
     total_budgeted = budget.total_budgeted
     total_actual = sum((row['actual'] for row in budget_variance(budget)), ZERO)
@@ -79,7 +83,12 @@ def impairment_risk_assessment(project, budget):
     ultimate_revenue = RevenueContract.objects.filter(project=project).aggregate(
         total=Sum('total_contract_value')
     )['total'] or ZERO
-    cost_basis = max(total_actual, total_budgeted) or Decimal('1')
+
+    from incentives.services import project_incentive_summary
+    _, incentive_cash_value = project_incentive_summary(project)
+
+    gross_cost_basis = max(total_actual, total_budgeted) or Decimal('1')
+    cost_basis = max(gross_cost_basis - incentive_cash_value, Decimal('1'))
     shortfall_pct = max(ZERO, (cost_basis - ultimate_revenue) / cost_basis)
     shortfall_score = min(shortfall_pct, Decimal('1')) * 100
 
@@ -97,6 +106,8 @@ def impairment_risk_assessment(project, budget):
         'total_actual': total_actual,
         'cost_overrun_pct': cost_overrun_pct * 100,
         'ultimate_revenue': ultimate_revenue,
+        'incentive_cash_value': incentive_cash_value,
+        'gross_cost_basis': gross_cost_basis,
         'cost_basis': cost_basis,
         'shortfall_pct': shortfall_pct * 100,
         'risk_score': risk_score,

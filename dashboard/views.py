@@ -10,6 +10,7 @@ from budgeting.services import variance_by_subtype, impairment_risk_assessment
 from revenue.models import RevenueContract
 from investors.models import Investor, Investment, Distribution
 from investors.services import investor_roi
+from incentives.services import project_incentive_summary
 
 PLOTLY_CONFIG = {'displayModeBar': False, 'responsive': True}
 
@@ -104,5 +105,21 @@ def project_detail(request, pk):
             waterfall_fig.update_layout(title='Distributions by Waterfall Tier')
             context['waterfall_chart'] = _plot_div(waterfall_fig)
     context['distributions'] = distributions
+
+    # Tax incentive claims
+    incentive_rows, incentive_total_cash_value = project_incentive_summary(project)
+    if incentive_rows:
+        incentive_fig = go.Figure(data=[go.Bar(
+            name='Estimated Cash Value',
+            x=[row['claim'].program.jurisdiction.name for row in incentive_rows],
+            y=[float(row['cash_value']) for row in incentive_rows],
+            marker_color='#2f9e6e',
+            text=[row['claim'].get_status_display() for row in incentive_rows],
+            textposition='outside',
+        )])
+        incentive_fig.update_layout(title='Tax Incentive Claims: Estimated Cash Value', yaxis_title='USD')
+        context['incentive_chart'] = _plot_div(incentive_fig)
+    context['incentive_rows'] = incentive_rows
+    context['incentive_total_cash_value'] = incentive_total_cash_value
 
     return render(request, 'dashboard/project_detail.html', context)

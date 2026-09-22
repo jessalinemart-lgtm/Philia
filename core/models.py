@@ -43,6 +43,19 @@ class ExchangeRate(models.Model):
         return (amount * rate.rate_to_usd).quantize(Decimal('0.01'))
 
 
+class Jurisdiction(models.Model):
+    """A state/country/province where production spend can occur -- the unit that
+    film tax incentive programs are scoped to (e.g. Georgia, United Kingdom, Ontario)."""
+    code = models.CharField(max_length=10, primary_key=True)  # short slug, e.g. 'UK', 'GA', 'DE'
+    name = models.CharField(max_length=100)
+
+    class Meta:
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
+
+
 class Project(models.Model):
     STATUS_CHOICES = [
         ('DEVELOPMENT', 'Development'),

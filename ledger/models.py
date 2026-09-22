@@ -3,7 +3,7 @@ from decimal import Decimal
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
 
-from core.models import Currency, ExchangeRate, Project
+from core.models import Currency, ExchangeRate, Jurisdiction, Project
 
 
 class Account(models.Model):
@@ -92,6 +92,11 @@ class JournalLine(models.Model):
     currency = models.ForeignKey(Currency, on_delete=models.PROTECT, default='USD')
     functional_amount = models.DecimalField(max_digits=14, decimal_places=2, editable=False)
     memo = models.CharField(max_length=255, blank=True)
+    # Where the spend physically happened, e.g. 'UK', 'DE', 'GA' -- distinct from `currency`
+    # (a UK crew could be paid in USD). Drives film tax incentive qualified-spend calculations.
+    incurred_jurisdiction = models.ForeignKey(
+        Jurisdiction, on_delete=models.PROTECT, null=True, blank=True, related_name='cost_lines'
+    )
 
     class Meta:
         ordering = ['id']
@@ -111,7 +116,7 @@ class JournalLine(models.Model):
 def post_journal_entry(project, date, memo, source, lines):
     """
     Create a balanced journal entry.
-    `lines` is a list of dicts: {account, direction, amount, currency, memo}
+    `lines` is a list of dicts: {account, direction, amount, currency, memo, incurred_jurisdiction}
     Raises ValidationError if debits != credits.
     """
     entry = JournalEntry.objects.create(project=project, date=date, memo=memo, source=source)
@@ -123,6 +128,7 @@ def post_journal_entry(project, date, memo, source, lines):
             amount=line['amount'],
             currency=line.get('currency') or Currency.objects.get(pk='USD'),
             memo=line.get('memo', ''),
+            incurred_jurisdiction=line.get('incurred_jurisdiction'),
         )
     entry.clean()
     return entry
