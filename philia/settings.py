@@ -14,17 +14,17 @@ import os
 from pathlib import Path
 
 import dj_database_url
+from django.core.management.utils import get_random_secret_key
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
 # SECURITY WARNING: keep the secret key used in production secret!
-# In production, set SECRET_KEY via environment variable (Render does this automatically
-# if you generate one in the dashboard, or set it explicitly in render.yaml).
-SECRET_KEY = os.environ.get(
-    'SECRET_KEY', 'django-insecure-)r96chjqvv87=0klti+^1pf!9r!erzs%3vo@=11htx*5eq4-3x'
-)
+# In production (Render), this is set via the SECRET_KEY env var (render.yaml generates
+# one automatically). Locally, with no env var set, a fresh random key is generated each
+# run -- fine for dev since it only invalidates existing sessions, never committed to git.
+SECRET_KEY = os.environ.get('SECRET_KEY') or get_random_secret_key()
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG', 'False') == 'True'

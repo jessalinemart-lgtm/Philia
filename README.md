@@ -41,8 +41,8 @@ python manage.py runserver
 ```
 
 Then visit `http://localhost:8000/` for the dashboard, or `http://localhost:8000/admin/`
-(user: `admin`, password: `philia-admin-2026` — change this) to enter data directly:
-journal entries, revenue contracts, investments, budgets, and distribution runs.
+(log in with the superuser you created above) to enter data directly: journal entries,
+revenue contracts, investments, budgets, and distribution runs.
 
 ## What the seed data demonstrates
 
