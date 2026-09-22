@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: philia
+    runtime: python
+    plan: free
+    buildCommand: "./build.sh"
+    startCommand: "gunicorn philia.wsgi:application"
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: "False"
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: philia-db
+          property: connectionString
+
+databases:
+  - name: philia-db
+    plan: free

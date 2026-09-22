@@ -1,0 +1,114 @@
+{% extends "dashboard/base.html" %}
+{% block title %}{{ project.title }} · Philia{% endblock %}
+{% block content %}
+<a href="{% url 'project_list' %}">&larr; All projects</a>
+<h1 style="margin-top:10px;">{{ project.title }}</h1>
+<p class="subtitle">{{ project.get_status_display }} · Functional currency {{ project.functional_currency_id }} · Budget ${{ project.budget_total|floatformat:0 }}</p>
+
+{% if risk %}
+<div class="card">
+  <h2>Impairment Risk Assessment</h2>
+  <div class="grid-2">
+    <div>
+      <table>
+        <tr><td>Total budgeted cost</td><td class="num">${{ risk.total_budgeted|floatformat:0 }}</td></tr>
+        <tr><td>Total actual cost to date</td><td class="num">${{ risk.total_actual|floatformat:0 }}</td></tr>
+        <tr><td>Cost overrun</td><td class="num {% if risk.cost_overrun_pct > 0 %}neg{% else %}pos{% endif %}">{{ risk.cost_overrun_pct|floatformat:1 }}%</td></tr>
+        <tr><td>Contracted + recognized revenue</td><td class="num">${{ risk.ultimate_revenue|floatformat:0 }}</td></tr>
+        <tr><td>Cost basis</td><td class="num">${{ risk.cost_basis|floatformat:0 }}</td></tr>
+        <tr><td>Revenue shortfall vs. cost basis</td><td class="num {% if risk.shortfall_pct > 0 %}neg{% else %}pos{% endif %}">{{ risk.shortfall_pct|floatformat:1 }}%</td></tr>
+      </table>
+    </div>
+    <div class="stat" style="align-self:center;">
+      <div class="value">{{ risk.risk_score|floatformat:0 }}<span style="font-size:16px;color:var(--muted);">/100</span></div>
+      <div class="label">Risk Score</div>
+      <div style="margin-top:8px;"><span class="pill {{ risk.risk_level }}">{{ risk.risk_level }} RISK</span></div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% if variance_chart %}
+<div class="card">
+  <h2>Budget vs. Actual Variance</h2>
+  {{ variance_chart|safe }}
+  <table style="margin-top:14px;">
+    <thead><tr><th>Category</th><th class="num">Budgeted</th><th class="num">Actual</th><th class="num">Variance</th><th class="num">%</th></tr></thead>
+    <tbody>
+    {% for row in variance_rows %}
+      <tr>
+        <td>{{ row.subtype }}</td>
+        <td class="num">${{ row.budgeted|floatformat:0 }}</td>
+        <td class="num">${{ row.actual|floatformat:0 }}</td>
+        <td class="num {% if row.variance > 0 %}neg{% else %}pos{% endif %}">${{ row.variance|floatformat:0 }}</td>
+        <td class="num {% if row.variance_pct > 0 %}neg{% else %}pos{% endif %}">{% if row.variance_pct != None %}{{ row.variance_pct|floatformat:1 }}%{% else %}&mdash;{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+{% if revenue_chart %}
+<div class="card">
+  <h2>Revenue Recognition</h2>
+  {{ revenue_chart|safe }}
+  <table style="margin-top:14px;">
+    <thead><tr><th>Counterparty</th><th>Type</th><th>Method</th><th class="num">Contract Value</th><th class="num">Recognized</th><th class="num">Remaining</th></tr></thead>
+    <tbody>
+    {% for c in contracts %}
+      <tr>
+        <td>{{ c.counterparty }}</td>
+        <td>{{ c.get_contract_type_display }}</td>
+        <td>{{ c.get_recognition_method_display }}</td>
+        <td class="num">${{ c.total_contract_value|floatformat:0 }}</td>
+        <td class="num">${{ c.total_recognized|floatformat:0 }}</td>
+        <td class="num">${{ c.remaining_to_recognize|floatformat:0 }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<div class="card">
+  <h2>Investors</h2>
+  <table>
+    <thead><tr><th>Investor</th><th class="num">Capital Contributed</th><th class="num">ROI to Date</th></tr></thead>
+    <tbody>
+    {% for row in investor_rows %}
+      <tr>
+        <td>{{ row.investor.name }} <span class="status-badge">{{ row.investor.get_entity_type_display }}</span></td>
+        <td class="num">${{ row.contributed|floatformat:0 }}</td>
+        <td class="num {% if row.roi and row.roi > 0 %}pos{% elif row.roi and row.roi < 0 %}neg{% endif %}">
+          {% if row.roi != None %}{{ row.roi|floatformat:1 }}x{% else %}&mdash;{% endif %}
+        </td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="3">No investors recorded.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% if waterfall_chart %}
+<div class="card">
+  <h2>Distribution Waterfall</h2>
+  {{ waterfall_chart|safe }}
+  <table style="margin-top:14px;">
+    <thead><tr><th>Date</th><th class="num">Net Proceeds</th><th>Status</th></tr></thead>
+    <tbody>
+    {% for d in distributions %}
+      <tr>
+        <td>{{ d.date }}</td>
+        <td class="num">${{ d.net_proceeds_available|floatformat:0 }}</td>
+        <td>{{ d.get_status_display }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<p style="margin-top: 10px;"><a href="/admin/">Open in admin &rarr;</a> to add journal entries, contracts, budgets or run a new distribution.</p>
+{% endblock %}
