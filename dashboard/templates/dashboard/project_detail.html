@@ -3,7 +3,7 @@
 {% block content %}
 <a href="{% url 'project_list' %}">&larr; All projects</a>
 <h1 style="margin-top:10px;">{{ project.title }}</h1>
-<p class="subtitle">{{ project.get_status_display }} · Functional currency {{ project.functional_currency_id }} · Budget ${{ project.budget_total|floatformat:0 }}</p>
+<p class="subtitle">{{ project.get_status_display }} · Functional currency {{ project.functional_currency_id }} · Budget ${{ project.budget_total|floatformat:0 }} · <a href="{% url 'trial_balance' project.pk %}">View trial balance &rarr;</a></p>
 
 {% if risk %}
 <div class="card">

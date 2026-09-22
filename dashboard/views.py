@@ -5,6 +5,7 @@ from plotly.offline import plot
 from django.shortcuts import render, get_object_or_404
 
 from core.models import Project
+from ledger.services import trial_balance
 from budgeting.models import Budget
 from budgeting.services import variance_by_subtype, impairment_risk_assessment
 from revenue.models import RevenueContract
@@ -123,3 +124,9 @@ def project_detail(request, pk):
     context['incentive_total_cash_value'] = incentive_total_cash_value
 
     return render(request, 'dashboard/project_detail.html', context)
+
+
+def trial_balance_view(request, pk):
+    project = get_object_or_404(Project, pk=pk)
+    report = trial_balance(project)
+    return render(request, 'dashboard/trial_balance.html', {'project': project, 'report': report})
