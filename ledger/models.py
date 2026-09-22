@@ -65,6 +65,11 @@ class JournalEntry(models.Model):
         return f'JE#{self.id} {self.project} {self.date} {self.memo}'
 
     def clean(self):
+        if self.pk is None:
+            # Not saved yet, so it can't have any lines -- nothing to validate. This
+            # matters because ModelForm validation (admin, or our own forms) calls
+            # clean() on a freshly-built, unsaved instance before it's ever saved.
+            return
         lines = list(self.lines.all())
         if not lines:
             return

@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'accounts',
     'core',
     'ledger',
     'revenue',
@@ -96,6 +97,11 @@ DATABASES = {
     )
 }
 
+
+# Auth redirects
+LOGIN_URL = 'login'
+LOGIN_REDIRECT_URL = 'project_list'
+LOGOUT_REDIRECT_URL = 'project_list'
 
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators

@@ -4,6 +4,7 @@ from decimal import Decimal
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
+from accounts.models import Company
 from core.models import Currency, ExchangeRate, Jurisdiction, Project
 from ledger.models import Account, post_journal_entry
 from budgeting.models import Budget, BudgetLine
@@ -57,10 +58,13 @@ class Command(BaseCommand):
             )
             accounts[code] = acct
 
-        self.stdout.write('Creating project...')
+        self.stdout.write('Creating demo company & project...')
+        demo_company, _ = Company.objects.get_or_create(name='Demo Company')
         project, _ = Project.objects.get_or_create(
             title='The Last Reel',
             defaults={
+                'company': demo_company,
+                'is_public': True,
                 'status': 'DISTRIBUTION',
                 'functional_currency': usd,
                 'budget_total': Decimal('5000000.00'),

@@ -1,0 +1,14 @@
+{% extends "dashboard/base.html" %}
+{% block title %}New Project · Philia{% endblock %}
+{% block content %}
+<a href="{% url 'project_list' %}">&larr; All projects</a>
+<h1 style="margin-top:10px;">New Project</h1>
+<p class="subtitle">This project will be private to {{ user.profile.company.name }}.</p>
+<div class="card" style="max-width: 560px;">
+  <form method="post" class="styled-form">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit" class="btn">Create project</button>
+  </form>
+</div>
+{% endblock %}

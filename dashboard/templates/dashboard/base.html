@@ -86,14 +86,71 @@
     letter-spacing: 0.4px;
   }
   @media (max-width: 700px) { .grid-2 { grid-template-columns: 1fr; } }
+
+  .nav-right { margin-left: auto; display: flex; align-items: center; gap: 16px; font-size: 13px; }
+  .nav-right a { color: #cfd9e8; }
+  .nav-right a:hover { color: white; }
+  .nav-right form { display: inline; margin: 0; }
+  .nav-right button.link-btn {
+    background: none; border: none; padding: 0; font: inherit; color: #cfd9e8;
+    cursor: pointer; text-decoration: none;
+  }
+  .nav-right button.link-btn:hover { color: white; text-decoration: underline; }
+  .btn {
+    display: inline-block;
+    background: var(--navy);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 9px 18px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+  }
+  .btn:hover { background: var(--navy-light); text-decoration: none; }
+  form.styled-form p { margin: 0 0 14px; }
+  form.styled-form label { display: block; font-size: 13px; font-weight: 600; color: var(--muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.3px; }
+  form.styled-form input[type=text], form.styled-form input[type=email], form.styled-form input[type=password],
+  form.styled-form input[type=number], form.styled-form input[type=date], form.styled-form select, form.styled-form textarea {
+    width: 100%;
+    padding: 9px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 14px;
+    font-family: inherit;
+    color: var(--text);
+    background: white;
+  }
+  form.styled-form .helptext { color: var(--muted); font-size: 12px; margin-top: 3px; display: block; }
+  form.styled-form ul.errorlist { color: var(--red); font-size: 13px; margin: 4px 0 0; padding-left: 18px; }
+  .formset-row { border: 1px solid var(--border); border-radius: 8px; padding: 14px; margin-bottom: 12px; }
+  .formset-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; align-items: end; }
+  .formset-grid p { margin: 0; }
+  @media (max-width: 900px) { .formset-grid { grid-template-columns: 1fr 1fr; } }
 </style>
 </head>
 <body>
 <header>
   <div class="brand">Philia<span>.</span></div>
   <div class="tagline">Film Accounting &amp; Investment Analytics</div>
+  <div class="nav-right">
+    {% if user.is_authenticated %}
+      <span>{{ user.profile.company.name }}</span>
+      <span>{{ user.username }}</span>
+      <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button type="submit" class="link-btn">Log out</button></form>
+    {% else %}
+      <a href="{% url 'login' %}">Log in</a>
+      <a href="{% url 'signup' %}">Sign up</a>
+    {% endif %}
+  </div>
 </header>
 <main>
+  {% if messages %}
+    {% for message in messages %}
+      <div class="card" style="border-left: 4px solid var(--green); padding: 12px 16px;">{{ message }}</div>
+    {% endfor %}
+  {% endif %}
   {% block content %}{% endblock %}
 </main>
 </body>

@@ -67,6 +67,13 @@ class Project(models.Model):
         ('CLOSED', 'Closed'),
     ]
 
+    company = models.ForeignKey(
+        'accounts.Company', on_delete=models.CASCADE, related_name='projects'
+    )
+    # A handful of projects (the seeded sample) are publicly viewable without login,
+    # so the app has something to show visitors who haven't signed up. Everything
+    # else is private to the owning Company.
+    is_public = models.BooleanField(default=False)
     title = models.CharField(max_length=200)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='DEVELOPMENT')
     functional_currency = models.ForeignKey(

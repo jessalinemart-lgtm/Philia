@@ -2,9 +2,16 @@ from decimal import Decimal
 
 import plotly.graph_objects as go
 from plotly.offline import plot
-from django.shortcuts import render, get_object_or_404
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.core.exceptions import ValidationError
+from django.db import transaction
+from django.db.models import Q
+from django.http import Http404
+from django.shortcuts import render, get_object_or_404, redirect
 
 from core.models import Project
+from ledger.models import JournalEntry
 from ledger.services import trial_balance
 from budgeting.models import Budget
 from budgeting.services import variance_by_subtype, impairment_risk_assessment
@@ -12,6 +19,7 @@ from revenue.models import RevenueContract
 from investors.models import Investor, Investment, Distribution
 from investors.services import investor_roi
 from incentives.services import project_incentive_summary
+from .forms import ProjectForm, JournalEntryForm, JournalLineFormSet
 
 PLOTLY_CONFIG = {'displayModeBar': False, 'responsive': True}
 
@@ -27,13 +35,30 @@ def _plot_div(fig, **layout_kwargs):
     return plot(fig, output_type='div', include_plotlyjs=False, config=PLOTLY_CONFIG)
 
 
+def _accessible_project_or_404(request, pk):
+    """A project is visible if it's public, or if the requesting user belongs to
+    the owning company. Everything else 404s -- deliberately, so a private
+    project's existence isn't even confirmable to an outsider."""
+    project = get_object_or_404(Project, pk=pk)
+    if project.is_public:
+        return project
+    if request.user.is_authenticated and getattr(request.user, 'profile', None) and \
+            request.user.profile.company_id == project.company_id:
+        return project
+    raise Http404('Project not found')
+
+
 def project_list(request):
-    projects = Project.objects.all().order_by('title')
+    if request.user.is_authenticated and hasattr(request.user, 'profile'):
+        visible = Q(is_public=True) | Q(company=request.user.profile.company)
+    else:
+        visible = Q(is_public=True)
+    projects = Project.objects.filter(visible).distinct().order_by('title')
     return render(request, 'dashboard/project_list.html', {'projects': projects})
 
 
 def project_detail(request, pk):
-    project = get_object_or_404(Project, pk=pk)
+    project = _accessible_project_or_404(request, pk)
     budget = Budget.objects.filter(project=project).order_by('-version').first()
 
     context = {'project': project, 'budget': budget}
@@ -127,6 +152,56 @@ def project_detail(request, pk):
 
 
 def trial_balance_view(request, pk):
-    project = get_object_or_404(Project, pk=pk)
+    project = _accessible_project_or_404(request, pk)
     report = trial_balance(project)
     return render(request, 'dashboard/trial_balance.html', {'project': project, 'report': report})
+
+
+@login_required
+def new_project(request):
+    if request.method == 'POST':
+        form = ProjectForm(request.POST)
+        if form.is_valid():
+            project = form.save(commit=False)
+            project.company = request.user.profile.company
+            project.is_public = False
+            project.save()
+            messages.success(request, f'Created "{project.title}".')
+            return redirect('project_detail', pk=project.pk)
+    else:
+        form = ProjectForm()
+    return render(request, 'dashboard/project_form.html', {'form': form})
+
+
+@login_required
+def new_journal_entry(request, pk):
+    project = get_object_or_404(Project, pk=pk)
+    if not (hasattr(request.user, 'profile') and request.user.profile.company_id == project.company_id):
+        raise Http404('Project not found')
+
+    if request.method == 'POST':
+        entry_form = JournalEntryForm(request.POST)
+        formset = JournalLineFormSet(request.POST, instance=JournalEntry(project=project, source='MANUAL'))
+        if entry_form.is_valid() and formset.is_valid():
+            try:
+                with transaction.atomic():
+                    entry = entry_form.save(commit=False)
+                    entry.project = project
+                    entry.source = 'MANUAL'
+                    entry.save()
+                    formset.instance = entry
+                    formset.save()
+                    entry.clean()
+                    if not entry.is_balanced():
+                        raise ValidationError('Debits must equal credits.')
+                messages.success(request, f'Posted journal entry #{entry.id}.')
+                return redirect('project_detail', pk=project.pk)
+            except (ValidationError, ValueError) as e:
+                entry_form.add_error(None, str(e))
+    else:
+        entry_form = JournalEntryForm()
+        formset = JournalLineFormSet(instance=JournalEntry(project=project))
+
+    return render(request, 'dashboard/journal_entry_form.html', {
+        'project': project, 'entry_form': entry_form, 'formset': formset,
+    })

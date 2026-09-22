@@ -1,21 +1,32 @@
 {% extends "dashboard/base.html" %}
 {% block title %}Projects · Philia{% endblock %}
 {% block content %}
-<h1>Projects</h1>
-<p class="subtitle">Select a title to view its ledger, revenue recognition, budget variance and investor analytics.</p>
+<div style="display:flex; justify-content:space-between; align-items:center;">
+  <div>
+    <h1>Projects</h1>
+    <p class="subtitle">Select a title to view its ledger, revenue recognition, budget variance and investor analytics.</p>
+  </div>
+  {% if user.is_authenticated %}
+    <a href="{% url 'new_project' %}" class="btn">+ New Project</a>
+  {% endif %}
+</div>
 <div class="project-list">
   {% for project in projects %}
   <a class="project-card" href="{% url 'project_detail' project.pk %}">
     <div style="display:flex; justify-content:space-between; align-items:center;">
       <strong>{{ project.title }}</strong>
-      <span class="status-badge">{{ project.get_status_display }}</span>
+      <span class="status-badge">{% if project.is_public %}PUBLIC DEMO &middot; {% endif %}{{ project.get_status_display }}</span>
     </div>
     <div style="color: var(--muted); font-size: 13px; margin-top: 4px;">
       Budget: ${{ project.budget_total|floatformat:0 }} · {{ project.functional_currency_id }}
     </div>
   </a>
   {% empty %}
-  <p>No projects yet. Run <code>python manage.py seed_demo</code> or add one in the <a href="/admin/">admin</a>.</p>
+    {% if user.is_authenticated %}
+      <p>No projects yet. <a href="{% url 'new_project' %}">Create your first project</a>.</p>
+    {% else %}
+      <p>No public demo available right now. <a href="{% url 'signup' %}">Sign up</a> to create your own.</p>
+    {% endif %}
   {% endfor %}
 </div>
 {% endblock %}

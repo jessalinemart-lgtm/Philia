@@ -1,0 +1,47 @@
+{% extends "dashboard/base.html" %}
+{% block title %}New Journal Entry · {{ project.title }} · Philia{% endblock %}
+{% block content %}
+<a href="{% url 'project_detail' project.pk %}">&larr; {{ project.title }}</a>
+<h1 style="margin-top:10px;">New Journal Entry</h1>
+<p class="subtitle">Every entry must balance: total debits must equal total credits.</p>
+
+{% if entry_form.non_field_errors %}
+  <div class="card" style="border-left: 4px solid var(--red);">
+    {{ entry_form.non_field_errors }}
+  </div>
+{% endif %}
+
+<div class="card">
+  <form method="post" class="styled-form">
+    {% csrf_token %}
+    <div class="formset-grid" style="grid-template-columns: 1fr 2fr; margin-bottom: 18px;">
+      {{ entry_form.date.label_tag }}{{ entry_form.date }}{{ entry_form.date.errors }}
+      {{ entry_form.memo.label_tag }}{{ entry_form.memo }}{{ entry_form.memo.errors }}
+    </div>
+
+    <h2>Lines</h2>
+    {{ formset.management_form }}
+    {{ formset.non_form_errors }}
+    {% for line_form in formset %}
+      <div class="formset-row">
+        {{ line_form.id }}
+        <div class="formset-grid">
+          <p>{{ line_form.account.label_tag }}{{ line_form.account }}{{ line_form.account.errors }}</p>
+          <p>{{ line_form.direction.label_tag }}{{ line_form.direction }}{{ line_form.direction.errors }}</p>
+          <p>{{ line_form.amount.label_tag }}{{ line_form.amount }}{{ line_form.amount.errors }}</p>
+          <p>{{ line_form.currency.label_tag }}{{ line_form.currency }}{{ line_form.currency.errors }}</p>
+          <p>{{ line_form.incurred_jurisdiction.label_tag }}{{ line_form.incurred_jurisdiction }}{{ line_form.incurred_jurisdiction.errors }}</p>
+          <p>{{ line_form.memo.label_tag }}{{ line_form.memo }}{{ line_form.memo.errors }}</p>
+        </div>
+        {% if line_form.instance.pk %}
+          <label style="margin-top:8px; display:inline-flex; align-items:center; gap:6px; font-size:13px; color:var(--muted);">
+            {{ line_form.DELETE }} Delete this line
+          </label>
+        {% endif %}
+      </div>
+    {% endfor %}
+
+    <button type="submit" class="btn">Post journal entry</button>
+  </form>
+</div>
+{% endblock %}

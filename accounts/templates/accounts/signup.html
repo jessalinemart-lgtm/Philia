@@ -1,0 +1,14 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Sign up · Philia{% endblock %}
+{% block content %}
+<h1>Create your account</h1>
+<p class="subtitle">Set up your production company's workspace. Your data is private to your company.</p>
+<div class="card" style="max-width: 420px;">
+  <form method="post" class="styled-form">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit" class="btn">Create account</button>
+  </form>
+</div>
+<p>Already have an account? <a href="{% url 'login' %}">Log in</a></p>
+{% endblock %}
