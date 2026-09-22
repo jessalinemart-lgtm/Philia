@@ -18,6 +18,10 @@ class Command(BaseCommand):
 
     @transaction.atomic
     def handle(self, *args, **options):
+        if Project.objects.filter(title='The Last Reel').exists():
+            self.stdout.write('Demo project already seeded, skipping.')
+            return
+
         self.stdout.write('Seeding currencies...')
         usd, _ = Currency.objects.get_or_create(code='USD', defaults={'name': 'US Dollar', 'symbol': '$'})
         eur, _ = Currency.objects.get_or_create(code='EUR', defaults={'name': 'Euro', 'symbol': '€'})
